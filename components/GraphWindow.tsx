@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Rnd, RndDragCallback, RndDragStopCallback } from "react-rnd";
+import { Rnd, RndDragCallback } from "react-rnd";
 import SensorGraph, { SensorData } from "./SensorGraph";
 
 export interface SnapTarget {
@@ -56,7 +56,7 @@ export default function GraphWindow({
     }
   };
 
-  const handleDragStop: RndDragStopCallback = (e, d) => {
+  const handleDragStop: RndDragCallback = (e, d) => {
     const newPos = { x: d.x, y: d.y };
     if (snapTarget && distanceToSnap(newPos) < SNAP_THRESHOLD) {
       // Snap exactly to target.
@@ -109,9 +109,9 @@ export default function GraphWindow({
           <button
             onClick={onClose}
             style={{
-              fontSize: "28px",   // Bigger X
+              fontSize: "28px",
               lineHeight: "28px",
-              width: "40px",       // Bigger touch/click area
+              width: "40px",
               height: "40px",
               background: "transparent",
               border: "none",
@@ -137,7 +137,7 @@ export default function GraphWindow({
               left: 0,
               width: snapTarget.width,
               height: snapTarget.height,
-              border: "3px dashed #00ff00", // Make preview a bit thicker for better visibility
+              border: "3px dashed #00ff00",
               pointerEvents: "none",
               zIndex: 100,
             }}
