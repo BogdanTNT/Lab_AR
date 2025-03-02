@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Rnd, RndDragCallback } from "react-rnd";
 import SensorGraph, { SensorData } from "./SensorGraph";
 import { getSensorDisplayInfo, SensorType } from "./sensorRegistry";
@@ -11,7 +11,7 @@ export interface SnapTarget {
   height: number;
 }
 
-interface GraphWindowProps {
+export interface GraphWindowProps {
   sensorData: SensorData;
   sensorType: SensorType;
   layoutMode: "free" | "split" | "quad";
@@ -20,11 +20,10 @@ interface GraphWindowProps {
   snapTarget?: SnapTarget;
   onClose?: () => void;
   dotColor: string;
-  qrPosition: { x: number; y: number } | null;
   scanningEnabled: boolean;
 }
 
-export default function GraphWindow({
+const GraphWindow: React.FC<GraphWindowProps> = ({
   sensorData,
   sensorType,
   layoutMode,
@@ -33,14 +32,11 @@ export default function GraphWindow({
   snapTarget,
   onClose,
   dotColor,
-  qrPosition,
   scanningEnabled,
-}: GraphWindowProps) {
+}) => {
   const [position, setPosition] = useState(defaultPosition);
   const [size, setSize] = useState(defaultSize);
   const [showPreview, setShowPreview] = useState(false);
-
-  const { displayName, unit } = getSensorDisplayInfo(sensorType);  // Fetch name + unit
 
   useEffect(() => {
     setPosition(defaultPosition);
@@ -48,7 +44,6 @@ export default function GraphWindow({
   }, [defaultPosition, defaultSize]);
 
   const SNAP_THRESHOLD = 50;
-
   const distanceToSnap = (pos: { x: number; y: number }): number => {
     if (!snapTarget) return Infinity;
     const dx = pos.x - snapTarget.x;
@@ -70,6 +65,8 @@ export default function GraphWindow({
     }
     setShowPreview(false);
   };
+
+  const { displayName, unit } = getSensorDisplayInfo(sensorType);
 
   return (
     <Rnd
@@ -147,4 +144,6 @@ export default function GraphWindow({
       </div>
     </Rnd>
   );
-}
+};
+
+export default GraphWindow;

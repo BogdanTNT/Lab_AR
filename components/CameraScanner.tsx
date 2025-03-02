@@ -17,39 +17,38 @@ export default function CameraScanner({ onNewQrRead, scanningEnabled }: CameraSc
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [decodedText, setDecodedText] = useState<string>("");
   const [qrPosition, setQrPosition] = useState<QRPosition | null>(null);
-  // Instead of a single dotColor, we store colors per QR code.
-  const [qrColors, setQrColors] = useState<{ [code: string]: string }>({});
-  const [qrReadList, setQrReadList] = useState<string[]>([]);
+  // Removed qrReadList state (was unused)
   const lastDetectionTimeRef = useRef<number>(Date.now());
+  const [dotColor, setDotColor] = useState<string>(() => getRandomColor());
 
   function getRandomColor(): string {
     return "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");
   }
 
-  // Start the camera if scanning is enabled.
   useEffect(() => {
     if (!scanningEnabled) return;
+    const video = videoRef.current;
+    if (!video) return;
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: "environment" } })
       .then((stream) => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.setAttribute("playsinline", "true");
-          videoRef.current.play();
-        }
+        video.srcObject = stream;
+        video.setAttribute("playsinline", "true");
+        video.play();
       })
       .catch((err) => console.error("Error accessing camera:", err));
 
     return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
+      // Copy videoRef.current to a variable to ensure it's stable during cleanup
+      const currentVideo = video;
+      if (currentVideo && currentVideo.srcObject) {
+        const stream = currentVideo.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
+        currentVideo.srcObject = null;
       }
     };
   }, [scanningEnabled]);
 
-  // Continuously scan for QR codes.
   useEffect(() => {
     if (!scanningEnabled) return;
     const canvas = canvasRef.current;
@@ -82,25 +81,13 @@ export default function CameraScanner({ onNewQrRead, scanningEnabled }: CameraSc
           const position = { x: centerX * scaleX, y: centerY * scaleY };
           setQrPosition(position);
 
-          setQrReadList((prevList) => {
-            if (!prevList.includes(code.data)) {
-              const newList = [...prevList, code.data];
-              // If this code hasn't been seen before, generate and store a color.
-              setQrColors((prevColors) => {
-                if (!prevColors[code.data]) {
-                  return { ...prevColors, [code.data]: getRandomColor() };
-                }
-                return prevColors;
-              });
-              // Use the stored color if available; otherwise, generate a temporary one.
-              const color = qrColors[code.data] || getRandomColor();
-              if (onNewQrRead) {
-                setTimeout(() => onNewQrRead(code.data, position, color), 0);
-              }
-              return newList;
-            }
-            return prevList;
-          });
+          // If this QR code is new, call the parent's callback.
+          // (We generate a new dot color and pass it along.)
+          if (onNewQrRead) {
+            const color = getRandomColor();
+            setDotColor(color);
+            setTimeout(() => onNewQrRead(code.data, position, color), 0);
+          }
         } else {
           if (Date.now() - lastDetectionTimeRef.current > 5000) {
             setQrPosition(null);
@@ -111,10 +98,7 @@ export default function CameraScanner({ onNewQrRead, scanningEnabled }: CameraSc
     };
 
     requestAnimationFrame(scanFrame);
-    return () => {
-      setQrPosition(null);
-    };
-  }, [onNewQrRead, scanningEnabled, qrColors]);
+  }, [onNewQrRead, scanningEnabled]);
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -138,7 +122,7 @@ export default function CameraScanner({ onNewQrRead, scanningEnabled }: CameraSc
             width: "20px",
             height: "20px",
             borderRadius: "50%",
-            background: qrColors[decodedText] || "#fff",
+            background: dotColor,
             transform: `translate(${qrPosition.x - 10}px, ${qrPosition.y - 10}px)`,
             transition: "transform 0.3s ease",
             zIndex: 10,

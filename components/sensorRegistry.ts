@@ -8,9 +8,9 @@ const sensorRegistry = {
     displayName: "Presence Sensor",
     yAxisTitle: "Presence (0/1)",
     color: "#00aaff",
-    unit: "-",   // No real unit for presence sensor
+    unit: "-", // No unit for presence
     simulateData: (): SensorData => {
-      const time = Array.from({ length: 60 }, (_, i) => i);
+      const time = Array.from({ length: 60 }, (_, i) => i.toString());
       const data = time.map(() => (Math.random() < 0.1 ? 1 : 0));
       return { time, data };
     },
@@ -21,8 +21,8 @@ const sensorRegistry = {
     color: "#ffaa00",
     unit: "RPM",
     simulateData: (): SensorData => {
-      const time = Array.from({ length: 60 }, (_, i) => i);
-      const data = time.map((i) => 1500 + Math.sin(i / 5) * 100 + Math.random() * 20);
+      const time = Array.from({ length: 60 }, (_, i) => i.toString());
+      const data = time.map((i) => 1500 + Math.sin(Number(i) / 5) * 100 + Math.random() * 20);
       return { time, data };
     },
   },
@@ -32,7 +32,7 @@ const sensorRegistry = {
     color: "#ff4444",
     unit: "°C",
     simulateData: (): SensorData => {
-      const time = Array.from({ length: 60 }, (_, i) => i);
+      const time = Array.from({ length: 60 }, (_, i) => i.toString());
       const data = time.map(() => 20 + Math.random() * 5);
       return { time, data };
     },

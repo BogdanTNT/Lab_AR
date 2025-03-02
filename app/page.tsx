@@ -1,9 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import CameraScanner from "../components/CameraScanner";
-import GraphWindow from "../components/GraphWindow";
+import GraphWindow, { SnapTarget } from "../components/GraphWindow";
 import { SensorData } from "../components/SensorGraph";
-import { SnapTarget } from "../components/GraphWindow";
 import { getRandomSensorType, simulateSensorData, SensorType } from "../components/sensorRegistry";
 
 interface GraphInfo {
@@ -11,7 +10,7 @@ interface GraphInfo {
   sensorType: SensorType;
   sensorData: SensorData;
   dotColor: string;
-  qrPosition: { x: number; y: number };
+  // Removed qrPosition from here.
 }
 
 export default function MainPage() {
@@ -20,7 +19,7 @@ export default function MainPage() {
   const [lockScanning, setLockScanning] = useState(false);
 
   useEffect(() => {
-    // Lock scrolling when page mounts
+    // Lock scrolling
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
 
@@ -29,16 +28,18 @@ export default function MainPage() {
     }
     updateSize();
     window.addEventListener("resize", updateSize);
-
     return () => {
-      // Cleanup: Restore scrolling when page unmounts
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
       window.removeEventListener("resize", updateSize);
     };
   }, []);
 
-  const handleNewQrRead = (newQr: string, position: { x: number; y: number }, color: string) => {
+  const handleNewQrRead = (
+    newQr: string,
+    position: { x: number; y: number },
+    color: string
+  ) => {
     if (lockScanning) return;
     setGraphs((prev) => {
       if (prev.length < 4 && !prev.find((g) => g.code === newQr)) {
@@ -50,7 +51,6 @@ export default function MainPage() {
             sensorType,
             sensorData: simulateSensorData(sensorType),
             dotColor: color,
-            qrPosition: position,
           },
         ];
       }
@@ -95,7 +95,6 @@ export default function MainPage() {
           snapTarget={snapTargets[index]}
           onClose={() => handleCloseGraph(graph.code)}
           dotColor={graph.dotColor}
-          qrPosition={graph.qrPosition}
           scanningEnabled={!lockScanning}
         />
       ))}
@@ -105,27 +104,21 @@ export default function MainPage() {
 
 function getSnapTargets(count: number, size: { width: number; height: number }): SnapTarget[] {
   const { width, height } = size;
-  if (count === 1)
-    return [
-      { x: 0, y: 0, width, height },
-    ];
-  if (count === 2)
-    return [
-      { x: 0, y: 0, width, height: height / 2 },
-      { x: 0, y: height / 2, width, height: height / 2 },
-    ];
-  if (count === 3)
-    return [
-      { x: 0, y: 0, width: width / 2, height: height / 2 },
-      { x: width / 2, y: 0, width: width / 2, height: height / 2 },
-      { x: 0, y: height / 2, width: width / 2, height: height / 2 },
-    ];
-  if (count === 4)
-    return [
-      { x: 0, y: 0, width: width / 2, height: height / 2 },
-      { x: width / 2, y: 0, width: width / 2, height: height / 2 },
-      { x: 0, y: height / 2, width: width / 2, height: height / 2 },
-      { x: width / 2, y: height / 2, width: width / 2, height: height / 2 },
-    ];
+  if (count === 1) return [{ x: 0, y: 0, width, height }];
+  if (count === 2) return [
+    { x: 0, y: 0, width, height: height / 2 },
+    { x: 0, y: height / 2, width, height: height / 2 }
+  ];
+  if (count === 3) return [
+    { x: 0, y: 0, width: width / 2, height: height / 2 },
+    { x: width / 2, y: 0, width: width / 2, height: height / 2 },
+    { x: 0, y: height / 2, width: width / 2, height: height / 2 }
+  ];
+  if (count === 4) return [
+    { x: 0, y: 0, width: width / 2, height: height / 2 },
+    { x: width / 2, y: 0, width: width / 2, height: height / 2 },
+    { x: 0, y: height / 2, width: width / 2, height: height / 2 },
+    { x: width / 2, y: height / 2, width: width / 2, height: height / 2 }
+  ];
   return [];
 }

@@ -1,10 +1,10 @@
 "use client";
 import dynamic from "next/dynamic";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { getSensorDisplayInfo, SensorType } from "./sensorRegistry";
 
 export interface SensorData {
-  time: string[]; // local time strings in hh:mm:ss
+  time: string[]; // local time strings (hh:mm:ss)
   data: number[];
 }
 
@@ -12,23 +12,19 @@ const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
 interface SensorGraphProps {
   sensorType: SensorType;
+  sensorData: SensorData;
   scanningEnabled: boolean;
-  initialData?: SensorData;
 }
 
-export default function SensorGraph({ sensorType, scanningEnabled, initialData }: SensorGraphProps) {
+export default function SensorGraph({ sensorType, sensorData: initialData, scanningEnabled }: SensorGraphProps) {
   const { displayName, yAxisTitle, color } = getSensorDisplayInfo(sensorType);
-  const [sensorData, setSensorData] = useState<SensorData>(
-    initialData || { time: [], data: [] }
-  );
+  const [sensorData, setSensorData] = useState<SensorData>(initialData);
 
-  // Helper: format current time in local hh:mm:ss
-  const getLocalTimeString = (date: Date = new Date()) => {
+  const getLocalTimeString = useCallback((date: Date = new Date()) => {
     return date.toLocaleTimeString("en-US", { hour12: false });
-  };
+  }, []);
 
-  // Generate a new sensor reading
-  const getNewReading = (): number => {
+  const getNewReading = useCallback((): number => {
     if (sensorType === "presence") {
       return Math.random() < 0.1 ? 1 : 0;
     } else if (sensorType === "speed") {
@@ -38,10 +34,9 @@ export default function SensorGraph({ sensorType, scanningEnabled, initialData }
       return 20 + Math.random() * 5;
     }
     return 0;
-  };
+  }, [sensorType]);
 
-  // Function to initialize data: generate last 60 seconds of data.
-  const initializeData = () => {
+  const initializeData = useCallback(() => {
     const initial: SensorData = { time: [], data: [] };
     const now = new Date();
     for (let i = 60; i > 0; i--) {
@@ -50,11 +45,10 @@ export default function SensorGraph({ sensorType, scanningEnabled, initialData }
       initial.data.push(getNewReading());
     }
     setSensorData(initial);
-  };
+  }, [getLocalTimeString, getNewReading]);
 
   useEffect(() => {
     if (scanningEnabled) {
-      // When scanning is enabled, initialize data and start updating.
       initializeData();
       const interval = setInterval(() => {
         const now = getLocalTimeString();
@@ -71,13 +65,12 @@ export default function SensorGraph({ sensorType, scanningEnabled, initialData }
       }, 1000);
       return () => clearInterval(interval);
     } else {
-      // When scanning is disabled, stop updating.
-      // Optionally, you might want to freeze the data.
-      // Here we simply do nothing.
+      // When scanning is disabled, reinitialize to current 60s window
+      initializeData();
     }
-  }, [sensorType, scanningEnabled]);
+  }, [sensorType, scanningEnabled, getLocalTimeString, getNewReading, initializeData]);
 
-  // For tick spacing, show every 5 or 10 seconds depending on screen width.
+  // Calculate tick values: show every 5 or 10 seconds depending on screen width.
   const tickStep = window.innerWidth < 600 ? 10 : 5;
   const tickvals = sensorData.time.filter((_, index) => index % tickStep === 0);
 
@@ -102,10 +95,7 @@ export default function SensorGraph({ sensorType, scanningEnabled, initialData }
             tickvals: tickvals,
             gridcolor: "rgba(255,255,255,0.3)",
           },
-          yaxis: {
-            title: yAxisTitle,
-            gridcolor: "rgba(255,255,255,0.3)",
-          },
+          yaxis: { title: yAxisTitle, gridcolor: "rgba(255,255,255,0.3)" },
           autosize: true,
           margin: { l: 25, r: 5, t: 5, b: 25 },
           paper_bgcolor: "rgba(0,0,0,0.1)",
