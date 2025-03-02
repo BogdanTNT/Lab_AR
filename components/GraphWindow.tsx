@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Rnd, RndDragCallback } from "react-rnd";
 import SensorGraph, { SensorData } from "./SensorGraph";
+import { getSensorDisplayInfo, SensorType } from "./sensorRegistry";
 
 export interface SnapTarget {
   x: number;
@@ -12,32 +13,41 @@ export interface SnapTarget {
 
 interface GraphWindowProps {
   sensorData: SensorData;
+  sensorType: SensorType;
   layoutMode: "free" | "split" | "quad";
   defaultPosition: { x: number; y: number };
   defaultSize: { width: number; height: number };
   snapTarget?: SnapTarget;
   onClose?: () => void;
+  dotColor: string;
+  qrPosition: { x: number; y: number } | null;
+  scanningEnabled: boolean;
 }
 
 export default function GraphWindow({
   sensorData,
+  sensorType,
   layoutMode,
   defaultPosition,
   defaultSize,
   snapTarget,
   onClose,
+  dotColor,
+  qrPosition,
+  scanningEnabled,
 }: GraphWindowProps) {
   const [position, setPosition] = useState(defaultPosition);
   const [size, setSize] = useState(defaultSize);
   const [showPreview, setShowPreview] = useState(false);
 
-  // When parent’s layout changes, update this window’s position and size.
+  const { displayName, unit } = getSensorDisplayInfo(sensorType);  // Fetch name + unit
+
   useEffect(() => {
     setPosition(defaultPosition);
     setSize(defaultSize);
   }, [defaultPosition, defaultSize]);
 
-  const SNAP_THRESHOLD = 50; // pixels
+  const SNAP_THRESHOLD = 50;
 
   const distanceToSnap = (pos: { x: number; y: number }): number => {
     if (!snapTarget) return Infinity;
@@ -47,23 +57,16 @@ export default function GraphWindow({
   };
 
   const handleDrag: RndDragCallback = (e, d) => {
-    const newPos = { x: d.x, y: d.y };
-    setPosition(newPos);
-    if (snapTarget && distanceToSnap(newPos) < SNAP_THRESHOLD) {
-      setShowPreview(true);
-    } else {
-      setShowPreview(false);
-    }
+    setPosition({ x: d.x, y: d.y });
+    setShowPreview(snapTarget ? distanceToSnap({ x: d.x, y: d.y }) < SNAP_THRESHOLD : false);
   };
 
   const handleDragStop: RndDragCallback = (e, d) => {
-    const newPos = { x: d.x, y: d.y };
-    if (snapTarget && distanceToSnap(newPos) < SNAP_THRESHOLD) {
-      // Snap exactly to target.
+    if (snapTarget && distanceToSnap({ x: d.x, y: d.y }) < SNAP_THRESHOLD) {
       setPosition({ x: snapTarget.x, y: snapTarget.y });
       setSize({ width: snapTarget.width, height: snapTarget.height });
     } else {
-      setPosition(newPos);
+      setPosition({ x: d.x, y: d.y });
     }
     setShowPreview(false);
   };
@@ -78,7 +81,7 @@ export default function GraphWindow({
         setSize({ width: ref.offsetWidth, height: ref.offsetHeight });
         setPosition(pos);
       }}
-      dragHandleClassName="drag-handle"
+      dragHandleClassName="actual-drag-handle"
       bounds="window"
       disableDragging={layoutMode !== "free"}
       enableResizing={layoutMode === "free"}
@@ -89,30 +92,29 @@ export default function GraphWindow({
       }}
     >
       <div style={{ width: "100%", height: "100%", position: "relative" }}>
-        {/* Thicker draggable header bar with larger "X" button */}
         <div
-          className="drag-handle"
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             padding: "0 15px",
-            height: "50px", // Thicker bar
-            background: "rgba(51,51,51,0.85)",
+            height: "50px",
+            background: dotColor,
             color: "#fff",
             fontWeight: "bold",
             fontSize: "18px",
-            cursor: "move",
           }}
         >
-          <span>Sensor Graph</span>
+          <div className="actual-drag-handle" style={{ flex: 1, cursor: "move" }}>
+            {`${displayName} Sensor Demo (${unit})`}
+          </div>
           <button
             onClick={onClose}
             style={{
               fontSize: "28px",
               lineHeight: "28px",
-              width: "40px",
-              height: "40px",
+              width: "50px",
+              height: "50px",
               background: "transparent",
               border: "none",
               color: "#fff",
@@ -126,9 +128,8 @@ export default function GraphWindow({
           </button>
         </div>
         <div style={{ height: "calc(100% - 50px)" }}>
-          <SensorGraph sensorData={sensorData} />
+          <SensorGraph sensorData={sensorData} sensorType={sensorType} scanningEnabled={scanningEnabled} />
         </div>
-        {/* Green dashed preview overlay shown during snapping */}
         {showPreview && snapTarget && (
           <div
             style={{

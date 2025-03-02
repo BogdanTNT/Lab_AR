@@ -4,97 +4,128 @@ import CameraScanner from "../components/CameraScanner";
 import GraphWindow from "../components/GraphWindow";
 import { SensorData } from "../components/SensorGraph";
 import { SnapTarget } from "../components/GraphWindow";
+import { getRandomSensorType, simulateSensorData, SensorType } from "../components/sensorRegistry";
 
 interface GraphInfo {
   code: string;
+  sensorType: SensorType;
   sensorData: SensorData;
-}
-
-function simulateSensorData(): SensorData {
-  const time: number[] = [];
-  const data: number[] = [];
-  for (let i = 0; i < 60; i++) {
-    time.push(i);
-    data.push(Math.random() < 0.1 ? 1 : 0);
-  }
-  return { time, data };
+  dotColor: string;
+  qrPosition: { x: number; y: number };
 }
 
 export default function MainPage() {
-  // Start with window size 0 then update on mount.
-  const [windowSize, setWindowSize] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [graphs, setGraphs] = useState<GraphInfo[]>([]);
+  const [lockScanning, setLockScanning] = useState(false);
 
   useEffect(() => {
+    // Lock scrolling when page mounts
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
     function updateSize() {
       setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     }
     updateSize();
     window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+
+    return () => {
+      // Cleanup: Restore scrolling when page unmounts
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      window.removeEventListener("resize", updateSize);
+    };
   }, []);
 
-  // When a new unique QR code is read, add a graph (max 4).
-  const handleNewQrRead = (newQr: string) => {
+  const handleNewQrRead = (newQr: string, position: { x: number; y: number }, color: string) => {
+    if (lockScanning) return;
     setGraphs((prev) => {
       if (prev.length < 4 && !prev.find((g) => g.code === newQr)) {
-        return [...prev, { code: newQr, sensorData: simulateSensorData() }];
+        const sensorType = getRandomSensorType();
+        return [
+          ...prev,
+          {
+            code: newQr,
+            sensorType,
+            sensorData: simulateSensorData(sensorType),
+            dotColor: color,
+            qrPosition: position,
+          },
+        ];
       }
       return prev;
     });
   };
 
-  // Remove a graph when its close button is pressed.
   const handleCloseGraph = (code: string) => {
     setGraphs((prev) => prev.filter((g) => g.code !== code));
   };
 
-  // Calculate snap targets based on current window size and number of graphs.
-  function getSnapTargets(count: number): SnapTarget[] {
-    const { width, height } = windowSize;
-    if (count === 1) {
-      return [{ x: 0, y: 0, width, height }];
-    } else if (count === 2) {
-      return [
-        { x: 0, y: 0, width, height: height / 2 },
-        { x: 0, y: height / 2, width, height: height / 2 },
-      ];
-    } else if (count === 3) {
-      return [
-        { x: 0, y: 0, width: width / 2, height: height / 2 },
-        { x: width / 2, y: 0, width: width / 2, height: height / 2 },
-        { x: 0, y: height / 2, width: width / 2, height: height / 2 },
-      ];
-    } else if (count === 4) {
-      return [
-        { x: 0, y: 0, width: width / 2, height: height / 2 },
-        { x: width / 2, y: 0, width: width / 2, height: height / 2 },
-        { x: 0, y: height / 2, width: width / 2, height: height / 2 },
-        { x: width / 2, y: height / 2, width: width / 2, height: height / 2 },
-      ];
-    }
-    return [];
-  }
-
-  const snapTargets = getSnapTargets(graphs.length);
+  const snapTargets = getSnapTargets(graphs.length, windowSize);
 
   return (
-    <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
-      <CameraScanner onNewQrRead={handleNewQrRead} />
+    <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: 10, left: 10, zIndex: 100 }}>
+        <button
+          onClick={() => setLockScanning((prev) => !prev)}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: lockScanning ? "red" : "green",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+          }}
+        >
+          {lockScanning ? "Unlock Scanner" : "Lock Scanner"}
+        </button>
+      </div>
+
+      <CameraScanner onNewQrRead={handleNewQrRead} scanningEnabled={!lockScanning} />
+
       {graphs.map((graph, index) => (
         <GraphWindow
           key={graph.code}
           sensorData={graph.sensorData}
+          sensorType={graph.sensorType}
           layoutMode="free"
           defaultPosition={snapTargets[index] || { x: 50, y: 50 }}
           defaultSize={snapTargets[index] || { width: 300, height: 300 }}
           snapTarget={snapTargets[index]}
           onClose={() => handleCloseGraph(graph.code)}
+          dotColor={graph.dotColor}
+          qrPosition={graph.qrPosition}
+          scanningEnabled={!lockScanning}
         />
       ))}
     </div>
   );
+}
+
+function getSnapTargets(count: number, size: { width: number; height: number }): SnapTarget[] {
+  const { width, height } = size;
+  if (count === 1)
+    return [
+      { x: 0, y: 0, width, height },
+    ];
+  if (count === 2)
+    return [
+      { x: 0, y: 0, width, height: height / 2 },
+      { x: 0, y: height / 2, width, height: height / 2 },
+    ];
+  if (count === 3)
+    return [
+      { x: 0, y: 0, width: width / 2, height: height / 2 },
+      { x: width / 2, y: 0, width: width / 2, height: height / 2 },
+      { x: 0, y: height / 2, width: width / 2, height: height / 2 },
+    ];
+  if (count === 4)
+    return [
+      { x: 0, y: 0, width: width / 2, height: height / 2 },
+      { x: width / 2, y: 0, width: width / 2, height: height / 2 },
+      { x: 0, y: height / 2, width: width / 2, height: height / 2 },
+      { x: width / 2, y: height / 2, width: width / 2, height: height / 2 },
+    ];
+  return [];
 }

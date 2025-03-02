@@ -27,3 +27,11 @@ body {
 .react-rnd {
   transition: transform 0.5s ease, width 0.5s ease, height 0.5s ease;
 }
+
+/* globals.css */
+html, body {
+  overflow: hidden;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
