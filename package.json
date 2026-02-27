@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "jsqr": "^1.4.0",
-    "next": "15.2.0",
+    "next": "15.2.8",
     "plotly.js": "^3.0.1",
     "qr-scanner": "^1.4.2",
     "react": "^19.0.0",
